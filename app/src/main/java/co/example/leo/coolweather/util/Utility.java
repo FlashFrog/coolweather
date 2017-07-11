@@ -3,6 +3,8 @@ package co.example.leo.coolweather.util;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.google.gson.Gson;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -10,6 +12,7 @@ import org.json.JSONObject;
 import co.example.leo.coolweather.db.City;
 import co.example.leo.coolweather.db.County;
 import co.example.leo.coolweather.db.Province;
+import co.example.leo.coolweather.gson.Weather;
 
 import static android.content.ContentValues.TAG;
 
@@ -88,5 +91,20 @@ public class Utility {
             }
         }
         return false;
+    }
+
+    /*
+     * 将返回的JSON数据解析成Weather 实体类
+     */
+    public static Weather handleWeatherResponse(String response){
+        try{
+            JSONObject jsonObject = new JSONObject(response);
+            JSONArray jsonArray = jsonObject.getJSONArray("HeWeather");
+            String weatherContent = jsonArray.getJSONObject(0).toString();
+            return new Gson().fromJson(weatherContent,Weather.class);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
     }
 }
