@@ -4,7 +4,6 @@ import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,7 +23,7 @@ import java.util.List;
 import co.example.leo.coolweather.db.City;
 import co.example.leo.coolweather.db.County;
 import co.example.leo.coolweather.db.Province;
-import co.example.leo.coolweather.util.HttpUtils;
+import co.example.leo.coolweather.util.HttpUtil;
 import co.example.leo.coolweather.util.Utility;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -122,15 +121,11 @@ public class ChooseAreaFragment extends Fragment {
         queryProvinces();
     }
 
-
-    /*
-     * 查询全国所有的省，优先从数据库查询，如果没有查询到再去服务器上查询
-     */
     private void queryProvinces(){
         titleText.setText("中国");
         backButton.setVisibility(View.GONE);
         provinceList = DataSupport.findAll(Province.class);
-        if(provinceList.size() > 0 ){
+        if(provinceList.size() > 0){
             dataList.clear();
             for(Province province : provinceList){
                 dataList.add(province.getProvinceName());
@@ -144,14 +139,12 @@ public class ChooseAreaFragment extends Fragment {
         }
     }
 
-    /*
-     *查询全国所有的市，优先从数据库查询，如果没有查询到再去服务器上查询
-     */
+
     private void queryCities(){
         titleText.setText(selectedProvince.getProvinceName());
         backButton.setVisibility(View.VISIBLE);
-        cityList = DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getId())).find(City.class);
-        if(cityList.size() > 0) {
+        cityList = DataSupport.where("provinceid = ?",String.valueOf(selectedProvince.getId())).find(City.class);
+        if(cityList.size() > 0){
             dataList.clear();
             for(City city : cityList){
                 dataList.add(city.getCityName());
@@ -159,56 +152,38 @@ public class ChooseAreaFragment extends Fragment {
             adapter.notifyDataSetChanged();
             listView.setSelection(0);
             currentLevel = LEVEL_CITY;
-        }else {
+        }else{
             int provinceCode = selectedProvince.getProvinceCode();
-                String address = "http://guolin.tech/api/china" +"/" + provinceCode;
-            queryFromServer(address,"city");
+            String address = "http://guolin.tech/api/china" + provinceCode;
+            queryFromServer(address, "city");
         }
+
     }
-    /*
-     *查询全国所有的县，优先从数据库查询，如果没有查询到再去服务器上查询
-     */
+
+
     private void queryCounties(){
         titleText.setText(selectedCity.getCityName());
         backButton.setVisibility(View.VISIBLE);
-        countyList = DataSupport.where("cityid = ?", String.valueOf(selectedProvince.getId())).find(County.class);
-        if(countyList.size() > 0 ){
+        countyList = DataSupport.where("cityid = ?",String.valueOf(selectedCity.getId())).find(County.class);
+        if(countyList.size() > 0){
             dataList.clear();
             for(County county : countyList){
                 dataList.add(county.getCountyName());
-                Log.d(TAG, "queryCounties: " + county.getCountyName());
             }
             adapter.notifyDataSetChanged();
             listView.setSelection(0);
             currentLevel = LEVEL_COUNTRY;
         }else {
             int provinceCode = selectedProvince.getProvinceCode();
-            Log.d(TAG, "queryCounties:  ProvinceCode"  + provinceCode);
             int cityCode = selectedCity.getCityCode();
-            Log.d(TAG, "queryCounties:  CityCode" + cityCode);
             String address = "http://guolin.tech/api/china/" + provinceCode + "/" + cityCode;
-            queryFromServer(address,"county");
+            queryFromServer(address, "county");
         }
     }
 
-    /*
-     * 根据传入的地址和类型从服务器上查询省市县数据
-     */
     private void queryFromServer(String address, final String type){
         showProgressDialog();
-        HttpUtils.sendOkHttpRequest(address, new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                //通过runOnUiThread()方法回到主线程处理逻辑
-                getActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        closeProgressDialog();
-                        Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
+        HttpUtil.sendOkHttpRequest(address, new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseText = response.body().string();
@@ -218,7 +193,7 @@ public class ChooseAreaFragment extends Fragment {
                 }else if("city".equals(type)){
                     result = Utility.handleCityResponse(responseText,selectedProvince.getId());
                 }else if("county".equals(type)){
-                    result = Utility.handleCountyResponse(responseText,selectedCity.getId());
+                    result =Utility.handleCountyResponse(responseText,selectedCity.getId());
                 }
                 if(result){
                     getActivity().runOnUiThread(new Runnable() {
@@ -229,15 +204,29 @@ public class ChooseAreaFragment extends Fragment {
                                 queryProvinces();
                             }else if("city".equals(type)){
                                 queryCities();
-                            }else if("country".equals(type)){
+                            }else if("county".equals(type)){
                                 queryCounties();
                             }
                         }
                     });
                 }
             }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        closeProgressDialog();
+                        Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+
         });
     }
+
 
     /*
      * 显示进度对话框
